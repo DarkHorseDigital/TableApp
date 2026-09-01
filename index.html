@@ -39,7 +39,9 @@
             flex: 1; 
             overflow-y: auto; 
             background: white; 
+            padding-bottom: 90px; /* Дает проскроллить таблицу чуть выше, чтобы кнопки ничего не закрывали */
         }
+
         
         .row { 
             display: flex; 
@@ -79,22 +81,27 @@
         textarea:focus { border-color: #6750A4; }
 
         /* === ПАНЕЛЬ КНОПОК С ЗАЩИТОЙ ОТ НАВИГАЦИИ ТЕЛЕФОНА === */
+                /* ===ПАНЕЛЬ КНОПОК ПАРЯЩАЯ НАД ТАБЛИЦЕЙ === */
         .footer { 
             display: flex;
             justify-content: flex-end;
             gap: 16px;
             padding: 16px; 
-            background: rgba(245, 245, 245, 0.95); 
-            border-top: 1px solid #e0e0e0;
+            background: transparent; /* Убрали серый фон */
+            border-top: none;       /* Убрали бордюр */
             flex-shrink: 0; 
-            position: relative;
+            position: absolute;      /* Кнопки парят поверх контента */
+            bottom: 0;
+            right: 0;
             z-index: 100;
-            /* Безопасный отступ снизу для жестовых полос и навигационных баров Android/iOS */
-            padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px) + 12px); 
+            /* Прижимаем ровно к границе системной навигации смартфона */
+            padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); 
+            pointer-events: none;    /* Чтобы клики сквозь прозрачный фон проходили к таблице */
         }
 
-        /* Общие стили круглых FAB-кнопок */
+        /* Возвращаем кликабельность самим кнопкам */
         .fab-btn {
+            pointer-events: auto;
             width: 56px;
             height: 56px;
             border-radius: 50%;
@@ -106,6 +113,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             transition: transform 0.1s ease, background-color 0.2s;
         }
+
         .fab-btn:active { transform: scale(0.92); }
 
         /* Кнопка сохранения (Фиолетовая) */
