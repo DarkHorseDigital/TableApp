@@ -215,9 +215,85 @@
                 products = defaultProducts.map(p => ({...p, quantity: '', comment: ''}));
                 localStorage.removeItem('tableapp_data');
                 
-                // Сбрасываем значения элементов интерфейса визуально
+                                // Сбрасываем значения элементов интерфейса визуально
                 products.forEach((item, index) => {
                     const qtyField = document.getElementById(`qty-${index}`);
                     const comField = document.getElementById(`com-${index}`);
                     if (qtyField) { qtyField.value = ''; qtyField.style.height = '28px'; }
-if (comField) { comField.value = ''; comField.style.height = '28px'; }});}}function saveToPng() {const width = 1000;const rowHeight = 80;const headerHeight = 90;const totalHeight = headerHeight + (products.length * rowHeight);const canvas = document.createElement('canvas');canvas.width = width;canvas.height = totalHeight;const ctx = canvas.getContext('2d');ctx.fillStyle = '#FFFFFF';ctx.fillRect(0, 0, width, totalHeight);ctx.fillStyle = '#000000';const col1 = 0, col2 = width * 0.4, col3 = width * 0.6, col4 = width * 0.8;ctx.font = 'bold 26px Roboto, Arial, sans-serif';ctx.fillText("Наименование", col1 + 15, 55);ctx.fillText("Кол-во", col2 + 15, 55);ctx.fillText("Ед. изм.", col3 + 15, 55);ctx.fillText("Комментарий", col4 + 15, 55);ctx.lineWidth = 2;ctx.strokeStyle = '#000000';ctx.beginPath();ctx.moveTo(0, headerHeight); ctx.lineTo(width, headerHeight);ctx.stroke();ctx.font = '26px Roboto, Arial, sans-serif';ctx.lineWidth = 2;ctx.strokeStyle = '#D3D3D3';products.forEach((item, i) => {const yPos = headerHeight + (i * rowHeight);const textY = yPos + 50;const cleanQty = (item.quantity || '').replace(/\s+/g, ' ');const cleanComment = (item.comment || '').replace(/\s+/g, ' ');ctx.fillText(item.name, col1 + 15, textY);ctx.fillText(cleanQty, col2 + 15, textY);ctx.fillText(item.unit, col3 + 15, textY);ctx.fillText(cleanComment, col4 + 15, textY);ctx.beginPath();ctx.moveTo(0, yPos + rowHeight); ctx.lineTo(width, yPos + rowHeight);ctx.stroke();});ctx.beginPath();ctx.moveTo(col2, 0); ctx.lineTo(col2, totalHeight);ctx.moveTo(col3, 0); ctx.lineTo(col3, totalHeight);ctx.moveTo(col4, 0); ctx.lineTo(col4, totalHeight);ctx.stroke();const link = document.createElement('a');link.download = Table_${Date.now()}.png;link.href = canvas.toDataURL('image/png');link.click();}if ('serviceWorker' in navigator) {navigator.serviceWorker.register('sw.js').then(() => console.log('Service Worker зарегистрирован')).catch(err => console.error('Ошибка SW:', err));}
+                    if (comField) { comField.value = ''; comField.style.height = '28px'; }
+                });
+            }
+        }
+
+        // Функция точной отрисовки PNG на Canvas (остается строго однострочной)
+        function saveToPng() {
+            const width = 1000;
+            const rowHeight = 80;
+            const headerHeight = 90;
+            const totalHeight = headerHeight + (products.length * rowHeight);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = totalHeight;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, totalHeight);
+
+            ctx.fillStyle = '#000000';
+            const col1 = 0, col2 = width * 0.4, col3 = width * 0.6, col4 = width * 0.8;
+
+            ctx.font = 'bold 26px Roboto, Arial, sans-serif';
+            ctx.fillText("Наименование", col1 + 15, 55);
+            ctx.fillText("Кол-во", col2 + 15, 55);
+            ctx.fillText("Ед. изм.", col3 + 15, 55);
+            ctx.fillText("Комментарий", col4 + 15, 55);
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#000000';
+            ctx.beginPath();
+            ctx.moveTo(0, headerHeight); ctx.lineTo(width, headerHeight);
+            ctx.stroke();
+
+            ctx.font = '26px Roboto, Arial, sans-serif';
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#D3D3D3';
+
+            products.forEach((item, i) => {
+                const yPos = headerHeight + (i * rowHeight);
+                const textY = yPos + 50;
+
+                const cleanQty = (item.quantity || '').replace(/\s+/g, ' ');
+                const cleanComment = (item.comment || '').replace(/\s+/g, ' ');
+
+                ctx.fillText(item.name, col1 + 15, textY);
+                ctx.fillText(cleanQty, col2 + 15, textY);
+                ctx.fillText(item.unit, col3 + 15, textY);
+                ctx.fillText(cleanComment, col4 + 15, textY);
+
+                ctx.beginPath();
+                ctx.moveTo(0, yPos + rowHeight); ctx.lineTo(width, yPos + rowHeight);
+                ctx.stroke();
+            });
+
+            ctx.beginPath();
+            ctx.moveTo(col2, 0); ctx.lineTo(col2, totalHeight);
+            ctx.moveTo(col3, 0); ctx.lineTo(col3, totalHeight);
+            ctx.moveTo(col4, 0); ctx.lineTo(col4, totalHeight);
+            ctx.stroke();
+
+            const link = document.createElement('a');
+            link.download = `Table_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Регистрация Service Worker для PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('Service Worker зарегистрирован'))
+                .catch(err => console.error('Ошибка SW:', err));
+        }
+    </script>
+</body>
+</html>
