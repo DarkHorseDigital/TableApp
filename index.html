@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TableApp</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6750A4">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Roboto, Arial, sans-serif; }
+        body { display: flex; flex-direction: column; height: 100vh; background-color: #f5f5f5; }
+        
+        /* Фиксированная шапка */
+        .header-table {
+            display: flex;
+            background: #6750A4;
+            color: white;
+            font-weight: bold;
+            font-size: 13px;
+            border-bottom: 2px solid #4f3a80;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* Контейнер прокрутки списка */
+        .table-container { flex: 1; overflow-y: auto; background: white; }
+        
+        /* Стили строк и ячеек */
+        .row { display: flex; border-bottom: 1px solid #e0e0e0; align-items: center; }
+        .cell { padding: 10px 6px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        /* Пропорции колонок (weight из Compose) */
+        .col-name { flex: 0.4; width: 40%; border-right: 1px solid #e0e0e0; }
+        .col-qty { flex: 0.2; width: 20%; border-right: 1px solid #e0e0e0; }
+        .col-unit { flex: 0.2; width: 20%; border-right: 1px solid #e0e0e0; }
+        .col-comment { flex: 0.2; width: 20%; }
+
+        .header-table .cell { border-right: 1px solid #4f3a80; }
+
+        /* Поля ввода внутри ячеек */
+        input {
+            width: 100%;
+            height: 28px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 0 4px;
+            font-size: 12px;
+            outline: none;
+        }
+        input:focus { border-color: #6750A4; }
+
+        /* Фиксированная кнопка внизу */
+        .footer { padding: 16px; background: #f5f5f5; }
+        .save-btn {
+            width: 100%;
+            padding: 12px;
+            background: #6750A4;
+            color: white;
+            border: none;
+            border-radius: 100px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .save-btn:active { background: #533f8a; }
+    </style>
+</head>
+<body>
+
+    <!-- Шапка таблицы -->
+    <div class="header-table">
+        <div class="cell col-name">Наименование</div>
+        <div class="cell col-qty">Кол-во</div>
+        <div class="cell col-unit">Ед. изм.</div>
+        <div class="cell col-comment">Комментарий</div>
+    </div>
+
+    <!-- Список товаров -->
+    <div class="table-container" id="table-body"></div>
+
+    <!-- Кнопка сохранения -->
+    <div class="footer">
+        <button class="save-btn" onclick="saveToPng()">Сохранить в формате PNG</button>
+    </div>
+
+    <script>
+        // Исходные данные из DataProvider.kt
+        const products = [
+            {name: "Лаваш", unit: "Лист"}, {name: "Помидоры", unit: "Шт."}, {name: "Сыр Пармезан", unit: "Банка"},
+            {name: "Курица Кимчи П/Ф", unit: "Шт."}, {name: "Салат \"Классическая\"", unit: "Шт."}, {name: "Салат \"Вкусочная\"", unit: "Шт."},
+            {name: "Соус \"Сливочно-устричный\"", unit: "Банка"}, {name: "Соус \"Лютый томат\"", unit: "Банка"}, {name: "Соус \"Кимчи-майо\"", unit: "Банка"},
+            {name: "Соус острый Шрирача", unit: "Шт."}, {name: "Кока-кола", unit: "Шт."}, {name: "Кока-кола без сахара", unit: "Шт."},
+            {name: "Вода без газа", unit: "Шт."}, {name: "Вода с газом", unit: "Шт."}, {name: "Вода для кулера", unit: "Бутыль"},
+            {name: "Кофе зерновой", unit: "Шт."}, {name: "Шоколад для кофе-машины", unit: "Шт."}, {name: "Молоко сухое", unit: "Шт."},
+            {name: "Чай черный", unit: "Шт."}, {name: "Чай зеленый", unit: "Шт."}, {name: "Сахар порционный", unit: "Шт."},
+            {name: "Пакет для шаурмы", unit: "Шт."}, {name: "Пакет \"майка\"", unit: "Шт."}, {name: "Пакет для мусора", unit: "Шт."},
+            {name: "Контейнер для сувлаки", unit: "Шт."}, {name: "Контейнер для боулов", unit: "Шт."}, {name: "Крышка контейнера для боулов", unit: "Шт."},
+            {name: "Стакан для кофе", unit: "Шт."}, {name: "Крышка стакана для кофе", unit: "Шт."}, {name: "Фольга", unit: "Рулон"},
+            {name: "Салфетки гостевые", unit: "Упаковка"}, {name: "Салфетки влажные", unit: "Шт."}, {name: "Вилки одноразовые", unit: "Шт."},
+            {name: "Трубочки одноразовые", unit: "Шт."}, {name: "Зубочистки", unit: "Шт."}, {name: "Размешиватели для кофе", unit: "Шт."},
+            {name: "Лента чековая", unit: "Рулон"}, {name: "Полотенца бумажные", unit: "Упаковка"}, {name: "Перчатки M", unit: "Упаковка"},
+            {name: "Перчатки L", unit: "Упаковка"}, {name: "Средство для стекол", unit: "Шт."}, {name: "НУК 0,02%", unit: "Литр"},
+            {name: "Спирт 70%", unit: "Литр"}
+        ].map(p => ({...p, quantity: '', comment: ''}));
+
+        // Генерация HTML таблицы
+        const container = document.getElementById('table-body');
+        products.forEach((item, index) => {
+            const row = document.createElement('div');
+            row.className = 'row';
+            row.innerHTML = `
+                <div class="cell col-name">${item.name}</div>
+                <div class="cell col-qty"><input type="text" id="qty-${index}" oninput="products[${index}].quantity = this.value"></div>
+                <div class="cell col-unit">${item.unit}</div>
+                <div class="cell col-comment"><input type="text" id="com-${index}" oninput="products[${index}].comment = this.value"></div>
+            `;
+            container.appendChild(row);
+        });
+
+        // Функция точной отрисовки PNG на Canvas (копия логики Android)
+        function saveToPng() {
+            const width = 1000;
+            const rowHeight = 80;
+            const headerHeight = 90;
+            const totalHeight = headerHeight + (products.length * rowHeight);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = totalHeight;
+            const ctx = canvas.getContext('2d');
+
+            // Белый фон
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, totalHeight);
+
+            // Настройка текста
+            ctx.fillStyle = '#000000';
+            ctx.font = '26px Roboto, Arial, sans-serif';
+
+            const col1 = 0, col2 = width * 0.4, col3 = width * 0.6, col4 = width * 0.8;
+
+            // Отрисовка Шапки
+            ctx.font = 'bold 26px Roboto, Arial, sans-serif';
+            ctx.fillText("Наименование", col1 + 15, 55);
+            ctx.fillText("Кол-во", col2 + 15, 55);
+            ctx.fillText("Ед. изм.", col3 + 15, 55);
+            ctx.fillText("Комментарий", col4 + 15, 55);
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#000000';
+            ctx.beginPath();
+            ctx.moveTo(0, headerHeight); ctx.lineTo(width, headerHeight);
+            ctx.stroke();
+
+            // Отрисовка Строк
+            ctx.font = '26px Roboto, Arial, sans-serif';
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#D3D3D3'; // LightGray
+
+            products.forEach((item, i) => {
+                const yPos = headerHeight + (i * rowHeight);
+                const textY = yPos + 50;
+
+                ctx.fillText(item.name, col1 + 15, textY);
+                ctx.fillText(item.quantity, col2 + 15, textY);
+                ctx.fillText(item.unit, col3 + 15, textY);
+                ctx.fillText(item.comment, col4 + 15, textY);
+
+                ctx.beginPath();
+                ctx.moveTo(0, yPos + rowHeight); ctx.lineTo(width, yPos + rowHeight);
+                ctx.stroke();
+            });
+
+            // Вертикальные линии
+            ctx.beginPath();
+            ctx.moveTo(col2, 0); ctx.lineTo(col2, totalHeight);
+            ctx.moveTo(col3, 0); ctx.lineTo(col3, totalHeight);
+            ctx.moveTo(col4, 0); ctx.lineTo(col4, totalHeight);
+            ctx.stroke();
+
+            // Скачивание файла в браузере
+            const link = document.createElement('a');
+            link.download = `Table_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Регистрация Service Worker для PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('Service Worker зарегистрирован'))
+                .catch(err => console.error('Ошибка SW:', err));
+        }
+    </script>
+</body>
+</html>
