@@ -9,20 +9,21 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Roboto, Arial, sans-serif; }
         
-        body { 
-            display: flex; 
-            flex-direction: column; 
-            height: 100vh;
-            /* Поддержка высоты экрана на мобильных с учетом панелей навигации */
-            height: -webkit-fill-available;
+        /* Переходим на Grid для жесткой фиксации элементов */
+        html, body { 
+            height: 100%;
+            margin: 0;
             background-color: #f5f5f5; 
             overflow: hidden; 
         }
-        
-        html {
-            height: -webkit-fill-available;
+
+        body {
+            display: grid;
+            /* 1 строка: шапка, 2 строка: таблица забирает все место, 3 строка: кнопки */
+            grid-template-rows: auto 1fr auto;
         }
         
+        /* Фиксированная шапка */
         .header-table {
             display: flex;
             background: #6750A4;
@@ -30,18 +31,16 @@
             font-weight: bold;
             font-size: 13px;
             border-bottom: 2px solid #4f3a80;
-            flex-shrink: 0;
-            /* Учет челки/вырезов сверху на смартфонах */
+            z-index: 10;
             padding-top: env(safe-area-inset-top, 0px);
         }
 
+        /* Контейнер списка — теперь он строго заперт в своей строке грида */
         .table-container { 
-            flex: 1; 
             overflow-y: auto; 
             background: white; 
-            padding-bottom: 90px; /* Дает проскроллить таблицу чуть выше, чтобы кнопки ничего не закрывали */
+            -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
         }
-
         
         .row { 
             display: flex; 
@@ -57,6 +56,7 @@
             align-items: center; 
         }
         
+        /* Размеры колонок */
         .col-name { flex: 1; width: 0; border-right: 1px solid #e0e0e0; }
         .col-comment { flex: 1; width: 0; }
         .col-qty { flex-shrink: 0; width: 65px; text-align: center; border-right: 1px solid #e0e0e0; }
@@ -80,28 +80,20 @@
         }
         textarea:focus { border-color: #6750A4; }
 
-        /* === ПАНЕЛЬ КНОПОК С ЗАЩИТОЙ ОТ НАВИГАЦИИ ТЕЛЕФОНА === */
-                /* ===ПАНЕЛЬ КНОПОК ПАРЯЩАЯ НАД ТАБЛИЦЕЙ === */
+        /* === ФИКСИРОВАННАЯ ПАНЕЛЬ КНОПОК === */
+        /* Теперь она не абсолютная, а является полноценной третьей строкой грида */
         .footer { 
             display: flex;
             justify-content: flex-end;
             gap: 16px;
-            padding: 16px; 
-            background: transparent; /* Убрали серый фон */
-            border-top: none;       /* Убрали бордюр */
-            flex-shrink: 0; 
-            position: absolute;      /* Кнопки парят поверх контента */
-            bottom: 0;
-            right: 0;
+            padding: 12px 16px; 
+            background: #f5f5f5; /* Легкий фон, чтобы отделять кнопки от таблицы под ними */
+            border-top: 1px solid #e0e0e0;
             z-index: 100;
-            /* Прижимаем ровно к границе системной навигации смартфона */
-            padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); 
-            pointer-events: none;    /* Чтобы клики сквозь прозрачный фон проходили к таблице */
+            padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); 
         }
 
-        /* Возвращаем кликабельность самим кнопкам */
         .fab-btn {
-            pointer-events: auto;
             width: 56px;
             height: 56px;
             border-radius: 50%;
@@ -113,14 +105,11 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             transition: transform 0.1s ease, background-color 0.2s;
         }
-
         .fab-btn:active { transform: scale(0.92); }
 
-        /* Кнопка сохранения (Фиолетовая) */
         .save-btn { background: #6750A4; }
         .save-btn:active { background: #533f8a; }
 
-        /* Кнопка очистки (Красная) */
         .clear-btn { background: #BA1A1A; }
         .clear-btn:active { background: #93000A; }
 
@@ -130,6 +119,7 @@
             fill: white;
         }
     </style>
+
 </head>
 <body>
 
