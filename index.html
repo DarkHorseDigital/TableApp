@@ -9,7 +9,6 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Roboto, Arial, sans-serif; }
         
-        /* Жесткая структура экрана без прокрутки самого body */
         body { 
             display: flex; 
             flex-direction: column; 
@@ -18,7 +17,6 @@
             overflow: hidden; 
         }
         
-        /* Фиксированная шапка */
         .header-table {
             display: flex;
             background: #6750A4;
@@ -26,52 +24,60 @@
             font-weight: bold;
             font-size: 13px;
             border-bottom: 2px solid #4f3a80;
-            flex-shrink: 0; /* Шапка не будет сжиматься */
+            flex-shrink: 0;
         }
 
-        /* Контейнер списка, который ОДИН имеет прокрутку */
         .table-container { 
             flex: 1; 
             overflow-y: auto; 
             background: white; 
         }
         
-        /* Стили строк и ячеек */
-        .row { display: flex; border-bottom: 1px solid #e0e0e0; align-items: center; }
-        .cell { padding: 10px 6px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Изменено: строки теперь могут гибко расти по высоте, убрано выравнивание по центру */
+        .row { 
+            display: flex; 
+            border-bottom: 1px solid #e0e0e0; 
+            align-items: stretch; /* Растягиваем ячейки на полную высоту строки */
+        }
         
-        /* === НОВАЯ СЕТКА КОЛОНОК === */
-        /* Колонки 1 и 4 делят оставшееся место поровну */
+        /* Изменено: убрано white-space: nowrap для переноса строк */
+        .cell { 
+            padding: 10px 6px; 
+            font-size: 12px; 
+            word-break: break-word; /* Перенос длинных слов */
+            display: flex;
+            align-items: center; /* Центрируем контент внутри ячейки вертикально */
+        }
+        
         .col-name { flex: 1; width: 0; border-right: 1px solid #e0e0e0; }
         .col-comment { flex: 1; width: 0; }
-        
-        /* Колонка 2: зажата под ширину заголовка "Кол-во" + отступы */
         .col-qty { flex-shrink: 0; width: 65px; text-align: center; border-right: 1px solid #e0e0e0; }
-        
-        /* Колонка 3: зажата под ширину слова "Упаковка" + отступы */
         .col-unit { flex-shrink: 0; width: 85px; text-align: center; border-right: 1px solid #e0e0e0; }
 
-        .header-table .cell { border-right: 1px solid #4f3a80; text-align: left; }
+        .header-table .cell { border-right: 1px solid #4f3a80; text-align: left; display: block; padding: 10px 6px;}
         .header-table .col-qty, .header-table .col-unit { text-align: center; }
 
-        /* Поля ввода внутри ячеек */
-        input {
+        /* Изменено: используем textarea вместо input для многострочного ввода */
+        textarea {
             width: 100%;
-            height: 28px;
+            min-height: 28px;
+            height: auto;
             border: 1px solid #ccc;
             border-radius: 4px;
-            padding: 0 4px;
+            padding: 4px;
             font-size: 12px;
             outline: none;
+            resize: none; /* Запрещаем ручное изменение размера пользователем */
+            overflow: hidden; /* Скрываем полосы прокрутки внутри поля */
+            font-family: inherit;
         }
-        input:focus { border-color: #6750A4; }
+        textarea:focus { border-color: #6750A4; }
 
-        /* Фиксированный подвал (Кнопка ВСЕГДА на экране) */
         .footer { 
             padding: 16px; 
             background: #f5f5f5; 
             border-top: 1px solid #e0e0e0;
-            flex-shrink: 0; /* Подвал не будет сжиматься */
+            flex-shrink: 0; 
         }
         .save-btn {
             width: 100%;
@@ -90,7 +96,6 @@
 </head>
 <body>
 
-    <!-- Шапка таблицы -->
     <div class="header-table">
         <div class="cell col-name">Наименование</div>
         <div class="cell col-qty">Кол-во</div>
@@ -98,16 +103,13 @@
         <div class="cell col-comment">Комментарий</div>
     </div>
 
-    <!-- Список товаров (только этот блок будет прокручиваться) -->
     <div class="table-container" id="table-body"></div>
 
-    <!-- Кнопка сохранения (теперь жестко зафиксирована внизу экрана) -->
     <div class="footer">
         <button class="save-btn" onclick="saveToPng()">Сохранить в формате PNG</button>
     </div>
 
     <script>
-        // Исходные данные из DataProvider.kt
         const products = [
             {name: "Лаваш", unit: "Лист"}, {name: "Помидоры", unit: "Шт."}, {name: "Сыр Пармезан", unit: "Банка"},
             {name: "Курица Кимчи П/Ф", unit: "Шт."}, {name: "Салат \"Классическая\"", unit: "Шт."}, {name: "Салат \"Вкусочная\"", unit: "Шт."},
@@ -126,21 +128,33 @@
             {name: "Спирт 70%", unit: "Литр"}
         ].map(p => ({...p, quantity: '', comment: ''}));
 
-        // Генерация HTML таблицы
+        // Функция автоматического изменения высоты текстового поля
+        function autoResize(textarea, index, type) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+            
+            // Записываем значение в массив данных
+            if (type === 'qty') products[index].quantity = textarea.value;
+            if (type === 'com') products[index].comment = textarea.value;
+        }
+
         const container = document.getElementById('table-body');
         products.forEach((item, index) => {
             const row = document.createElement('div');
             row.className = 'row';
             row.innerHTML = `
                 <div class="cell col-name">${item.name}</div>
-                <div class="cell col-qty"><input type="text" id="qty-${index}" oninput="products[${index}].quantity = this.value"></div>
+                <div class="cell col-qty">
+                    <textarea id="qty-${index}" rows="1" oninput="autoResize(this, ${index}, 'qty')"></textarea>
+                </div>
                 <div class="cell col-unit">${item.unit}</div>
-                <div class="cell col-comment"><input type="text" id="com-${index}" oninput="products[${index}].comment = this.value"></div>
+                <div class="cell col-comment">
+                    <textarea id="com-${index}" rows="1" oninput="autoResize(this, ${index}, 'com')"></textarea>
+                </div>
             `;
             container.appendChild(row);
         });
 
-        // Функция точной отрисовки PNG на Canvas (пропорции на картинке сохраняем как в Android)
         function saveToPng() {
             const width = 1000;
             const rowHeight = 80;
@@ -156,11 +170,9 @@
             ctx.fillRect(0, 0, width, totalHeight);
 
             ctx.fillStyle = '#000000';
-            ctx.font = '26px Roboto, Arial, sans-serif';
-
-            // На картинке сохраняем пропорции: 40% / 20% / 20% / 20% для читаемости на широком формате PNG
             const col1 = 0, col2 = width * 0.4, col3 = width * 0.6, col4 = width * 0.8;
 
+            // Отрисовка Шапки
             ctx.font = 'bold 26px Roboto, Arial, sans-serif';
             ctx.fillText("Наименование", col1 + 15, 55);
             ctx.fillText("Кол-во", col2 + 15, 55);
@@ -173,6 +185,7 @@
             ctx.moveTo(0, headerHeight); ctx.lineTo(width, headerHeight);
             ctx.stroke();
 
+            // Отрисовка Строк (Остается строго однострочной, как в Android-коде)
             ctx.font = '26px Roboto, Arial, sans-serif';
             ctx.lineWidth = 2;
             ctx.strokeStyle = '#D3D3D3';
@@ -181,10 +194,14 @@
                 const yPos = headerHeight + (i * rowHeight);
                 const textY = yPos + 50;
 
+                // Заменяем переносы строк на пробелы, чтобы в PNG всё точно ушло в одну линию
+                const cleanQty = item.quantity.replace(/\s+/g, ' ');
+                const cleanComment = item.comment.replace(/\s+/g, ' ');
+
                 ctx.fillText(item.name, col1 + 15, textY);
-                ctx.fillText(item.quantity, col2 + 15, textY);
+                ctx.fillText(cleanQty, col2 + 15, textY);
                 ctx.fillText(item.unit, col3 + 15, textY);
-                ctx.fillText(item.comment, col4 + 15, textY);
+                ctx.fillText(cleanComment, col4 + 15, textY);
 
                 ctx.beginPath();
                 ctx.moveTo(0, yPos + rowHeight); ctx.lineTo(width, yPos + rowHeight);
