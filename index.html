@@ -9,21 +9,20 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Roboto, Arial, sans-serif; }
         
-        /* Переходим на Grid для жесткой фиксации элементов */
-        html, body { 
-            height: 100%;
-            margin: 0;
+        body { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh;
+            /* Поддержка высоты экрана на мобильных с учетом панелей навигации */
+            height: -webkit-fill-available;
             background-color: #f5f5f5; 
             overflow: hidden; 
         }
-
-        body {
-            display: grid;
-            /* 1 строка: шапка, 2 строка: таблица забирает все место, 3 строка: кнопки */
-            grid-template-rows: auto 1fr auto;
+        
+        html {
+            height: -webkit-fill-available;
         }
         
-        /* Фиксированная шапка */
         .header-table {
             display: flex;
             background: #6750A4;
@@ -31,15 +30,15 @@
             font-weight: bold;
             font-size: 13px;
             border-bottom: 2px solid #4f3a80;
-            z-index: 10;
+            flex-shrink: 0;
+            /* Учет челки/вырезов сверху на смартфонах */
             padding-top: env(safe-area-inset-top, 0px);
         }
 
-        /* Контейнер списка — теперь он строго заперт в своей строке грида */
         .table-container { 
+            flex: 1; 
             overflow-y: auto; 
             background: white; 
-            -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
         }
         
         .row { 
@@ -56,7 +55,6 @@
             align-items: center; 
         }
         
-        /* Размеры колонок */
         .col-name { flex: 1; width: 0; border-right: 1px solid #e0e0e0; }
         .col-comment { flex: 1; width: 0; }
         .col-qty { flex-shrink: 0; width: 65px; text-align: center; border-right: 1px solid #e0e0e0; }
@@ -80,19 +78,22 @@
         }
         textarea:focus { border-color: #6750A4; }
 
-        /* === ФИКСИРОВАННАЯ ПАНЕЛЬ КНОПОК === */
-        /* Теперь она не абсолютная, а является полноценной третьей строкой грида */
+        /* === ПАНЕЛЬ КНОПОК С ЗАЩИТОЙ ОТ НАВИГАЦИИ ТЕЛЕФОНА === */
         .footer { 
             display: flex;
             justify-content: flex-end;
             gap: 16px;
-            padding: 12px 16px; 
-            background: #f5f5f5; /* Легкий фон, чтобы отделять кнопки от таблицы под ними */
+            padding: 16px; 
+            background: rgba(245, 245, 245, 0.95); 
             border-top: 1px solid #e0e0e0;
+            flex-shrink: 0; 
+            position: relative;
             z-index: 100;
-            padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); 
+            /* Безопасный отступ снизу для жестовых полос и навигационных баров Android/iOS */
+            padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px) + 12px); 
         }
 
+        /* Общие стили круглых FAB-кнопок */
         .fab-btn {
             width: 56px;
             height: 56px;
@@ -107,9 +108,11 @@
         }
         .fab-btn:active { transform: scale(0.92); }
 
+        /* Кнопка сохранения (Фиолетовая) */
         .save-btn { background: #6750A4; }
         .save-btn:active { background: #533f8a; }
 
+        /* Кнопка очистки (Красная) */
         .clear-btn { background: #BA1A1A; }
         .clear-btn:active { background: #93000A; }
 
