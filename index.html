@@ -283,31 +283,39 @@
         }
 
         // Регистрация Service Worker для PWA (Автоматическое "тихое" обновление)
-        if ('serviceWorker' in navigator) {
+                if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js')
                 .then((reg) => {
                     console.log('Service Worker зарегистрирован');
 
-                    // Проверяем наличие обновлений при каждом запуске
+                    // ХАК ДЛЯ GITHUB PAGES: Заставляем браузер проверить наличие новой версии sw.js на сервере прямо сейчас
                     reg.update();
 
-                    // Если воркер обновился и ждет, даем команду применить его при следующем перезапуске
+                    // Если воркер обновился и ждет в фоне
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
                     }
 
-                    // Если новый воркер загрузился прямо во время текущей сессии
+                    // Если воркер обнаружил обновление в процессе работы
                     reg.addEventListener('updatefound', () => {
                         const newWorker = reg.installing;
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                // Тихо активируем его в фоне
                                 newWorker.postMessage({ type: 'SKIP_WAITING' });
                             }
                         });
                     });
                 })
                 .catch(err => console.error('Ошибка SW:', err));
+
+            // Как только новый сервис-воркер перехватит управление — тихо обновляем страницу
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
         }
 
     </script>
