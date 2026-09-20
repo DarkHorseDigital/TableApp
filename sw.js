@@ -1,8 +1,8 @@
-// При каждом обновлении index.html меняйте версию (например, 'tableapp-v2', 'tableapp-v3' и т.д.)
-const CACHE_NAME = 'tableapp-v3';
+const CACHE_NAME = 'tableapp-v3'; // Поменяли на v3
+
+// Кэшируем только тяжелые статичные ресурсы. 
+// Исключаем '.', чтобы не зацикливать index.html в жестком кэше!
 const ASSETS = [
-  '.',
-  'index.html',
   'manifest.json',
   'icon.png'
 ];
@@ -13,7 +13,7 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// АКТИВАЦИЯ: Удаляем старый кэш ('tableapp-v1'), когда активируется новый воркер
+// Активация и полная очистка старых версий кэша
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
@@ -28,13 +28,34 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// Стратегия Network First для HTML страниц, и Cache First для картинок
 self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then((response) => response || fetch(e.request))
-  );
+  const url = new URL(e.request.url);
+
+  // Если запрашивают главную страницу (или index.html) — СНАЧАЛА ИДЕМ В СЕТЬ
+  if (e.request.mode === 'navigate' || url.pathname.endsWith('index.html') || url.pathname === '/') {
+    e.respondWith(
+      fetch(e.request)
+        .then((response) => {
+          // Если сеть доступна, сохраняем свежую копию в кэш и отдаем пользователю
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
+          return response;
+        })
+        .catch(() => {
+          // Если интернета нет (оффлайн) — достаем из кэша
+          return caches.match(e.request);
+        })
+    );
+  } else {
+    // Для картинок и манифеста оставляем быструю работу из кэша
+    e.respondWith(
+      caches.match(e.request).then((response) => response || fetch(e.request))
+    );
+  }
 });
 
-// ВАЖНО: Слушаем команду от index.html, чтобы немедленно переключиться на новую версию
+// Быстрая активация без ожидания
 self.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
