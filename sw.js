@@ -1,5 +1,5 @@
 // При каждом обновлении index.html меняйте версию (например, 'tableapp-v2', 'tableapp-v3' и т.д.)
-const CACHE_NAME = 'tableapp-v2';
+const CACHE_NAME = 'tableapp-v3';
 const ASSETS = [
   '.',
   'index.html',
