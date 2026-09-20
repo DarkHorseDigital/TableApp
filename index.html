@@ -283,20 +283,22 @@
         }
 
         // Регистрация Service Worker для PWA (Автоматическое "тихое" обновление)
-                if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
+                        if ('serviceWorker' in navigator) {
+            // ХАК ПРОТИВ КЭША БРАУЗЕРА: добавляем временную метку (каждые 5 минут новая), 
+            // чтобы браузер гарантированно шел на сервер за свежим sw.js, а не брал его из HTTP-кэша
+            const cacheBuster = Math.floor(Date.now() / 300000); 
+            
+            navigator.serviceWorker.register(`sw.js?v=${cacheBuster}`)
                 .then((reg) => {
                     console.log('Service Worker зарегистрирован');
 
-                    // ХАК ДЛЯ GITHUB PAGES: Заставляем браузер проверить наличие новой версии sw.js на сервере прямо сейчас
+                    // Принудительно запрашиваем обновление
                     reg.update();
 
-                    // Если воркер обновился и ждет в фоне
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
                     }
 
-                    // Если воркер обнаружил обновление в процессе работы
                     reg.addEventListener('updatefound', () => {
                         const newWorker = reg.installing;
                         newWorker.addEventListener('statechange', () => {
@@ -308,7 +310,7 @@
                 })
                 .catch(err => console.error('Ошибка SW:', err));
 
-            // Как только новый сервис-воркер перехватит управление — тихо обновляем страницу
+            // Автоматический мягкий перезапуск, когда новая версия готова
             let refreshing = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 if (!refreshing) {
