@@ -1,5 +1,5 @@
 // При каждом обновлении index.html меняйте эту версию (например, v4, v5 и т.д.)
-const CACHE_NAME = 'tableapp-v4'; 
+const CACHE_NAME = 'tableapp-v5'; 
 
 // Кэшируем только тяжелую статику. index.html сюда НЕ добавляем!
 const ASSETS = [
