@@ -282,12 +282,34 @@
             link.click();
         }
 
-        // Регистрация Service Worker для PWA
+        // Регистрация Service Worker для PWA (Автоматическое "тихое" обновление)
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js')
-                .then(() => console.log('Service Worker зарегистрирован'))
+                .then((reg) => {
+                    console.log('Service Worker зарегистрирован');
+
+                    // Проверяем наличие обновлений при каждом запуске
+                    reg.update();
+
+                    // Если воркер обновился и ждет, даем команду применить его при следующем перезапуске
+                    if (reg.waiting) {
+                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+
+                    // Если новый воркер загрузился прямо во время текущей сессии
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // Тихо активируем его в фоне
+                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                            }
+                        });
+                    });
+                })
                 .catch(err => console.error('Ошибка SW:', err));
         }
+
     </script>
 </body>
 </html>
