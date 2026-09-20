@@ -1,7 +1,7 @@
-const CACHE_NAME = 'tableapp-v4'; // Поменяли на v3
+// При каждом обновлении index.html меняйте эту версию (например, v4, v5 и т.д.)
+const CACHE_NAME = 'tableapp-v3'; 
 
-// Кэшируем только тяжелые статичные ресурсы. 
-// Исключаем '.', чтобы не зацикливать index.html в жестком кэше!
+// Кэшируем только тяжелую статику. index.html сюда НЕ добавляем!
 const ASSETS = [
   'manifest.json',
   'icon.png'
@@ -13,7 +13,7 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// Активация и полная очистка старых версий кэша
+// АКТИВАЦИЯ: Полностью удаляем старые версии кэша из памяти смартфона
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
@@ -28,22 +28,22 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Стратегия Network First для HTML страниц, и Cache First для картинок
+// Перехват сетевых запросов
 self.addEventListener('fetch', (e) => {
+  // Важно: создаем объект URL, чтобы ваш код ниже работал корректно
   const url = new URL(e.request.url);
 
-  // Если запрашивают главную страницу (или index.html) — СНАЧАЛА ИДЕМ В СЕТЬ
+  // Если запрашивают главную страницу — СНАЧАЛА ИДЕМ В СЕТЬ И ИГНОРИРУЕМ КЭШ БРАУЗЕРА
   if (e.request.mode === 'navigate' || url.pathname.endsWith('index.html') || url.pathname === '/') {
     e.respondWith(
-      fetch(e.request)
+      // cache: 'reload' заставляет браузер пробить свой HTTP-кэш и взять файл прямо с сервера!
+      fetch(e.request, { cache: 'reload' })
         .then((response) => {
-          // Если сеть доступна, сохраняем свежую копию в кэш и отдаем пользователю
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
           return response;
         })
         .catch(() => {
-          // Если интернета нет (оффлайн) — достаем из кэша
           return caches.match(e.request);
         })
     );
@@ -55,7 +55,7 @@ self.addEventListener('fetch', (e) => {
   }
 });
 
-// Быстрая активация без ожидания
+// Быстрая активация без ожидания по команде из index.html
 self.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
