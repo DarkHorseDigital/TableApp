@@ -259,7 +259,7 @@ function saveToPng() {
         context.font = fontBody;
         const words = text.split(' ');
         const lines = [];
-        let currentLine = words[0] || '';
+        let currentLine = words || '';
 
         for (let i = 1; i < words.length; i++) {
             const word = words[i];
@@ -275,16 +275,28 @@ function saveToPng() {
         return lines;
     }
 
-    // --- Шаг 1: Расчет стабильной ширины столбцов ---
-    // Замеряем только заголовок "Кол-во" для определения ширины второго столбца
+    // --- Шаг 1: Расчет адаптивной ширины столбцов под 719px ---
+    let maxCol2TextWidth = 0;
+    let maxCol3TextWidth = 0;
+
+    // Замеряем заголовки
     ctx.font = fontHeader;
-    const maxCol2TextWidth = ctx.measureText("Кол-во").width;
+    maxCol2TextWidth = Math.max(maxCol2TextWidth, ctx.measureText("Кол-во").width);
+    maxCol3TextWidth = Math.max(maxCol3TextWidth, ctx.measureText("Ед. изм.").width);
+
+    // Замеряем данные из списка продуктов для 3-го столбца (Ед. изм.)
+    ctx.font = fontBody;
+    products.forEach(item => {
+        maxCol3TextWidth = Math.max(maxCol3TextWidth, ctx.measureText(item.unit).width);
+    });
+
+    // 2-й столбец (Кол-во) — фиксируем по заголовку с небольшим запасом под цифры
+    const widthCol2 = Math.ceil(maxCol2TextWidth + paddingX * 2) + 20; 
     
-    // Стабильная ширина 2-го столбца (заголовок + отступы с запасом под цифры)
-    const widthCol2 = Math.ceil(maxCol2TextWidth + paddingX * 2) + 20; // ~150px
-    // Фиксированная ширина 3-го столбца (под Ед. изм. вроде "Упаковка", "Порция")
-    const widthCol3 = 140; 
-    // Первый столбец забирает весь железный остаток
+    // 3-й столбец (Ед. изм.) — динамически по самому широкому слову + симметричные отступы
+    const widthCol3 = Math.ceil(maxCol3TextWidth + paddingX * 2); 
+    
+    // 1-й столбец (Наименование) — забирает весь оставшийся «кусок» от 719px
     const widthCol1 = totalWidth - widthCol2 - widthCol3;
 
     // Допустимая ширина чистого текста внутри каждого столбца
@@ -297,11 +309,9 @@ function saveToPng() {
     const col2 = widthCol1;
     const col3 = widthCol1 + widthCol2;
 
-    // --- Шаг 2: Расчет общей высоты и подготовка текста ---
+    // --- Шаг 2: Расчет переносов текста ---
     const preparedRows = products.map(item => {
         const cleanQty = (item.quantity || '').replace(/\s+/g, ' ');
-        
-        // Разбиваем текст на строки. Если строк больше 2, лишние просто проигнорируются при отрисовке
         return {
             nameLines: splitTextIntoLines(item.name, maxTextWidthCol1, ctx),
             qtyLines: splitTextIntoLines(cleanQty, maxTextWidthCol2, ctx),
@@ -344,16 +354,13 @@ function saveToPng() {
         // Вспомогательная функция для рендеринга текста по центру фиксированной строки
         function drawCellLines(lines, colX, colWidth) {
             ctx.save();
-            // Ограничиваем область рисования, чтобы текст физически не вылезал за границы ячейки
             ctx.beginPath();
             ctx.rect(colX, currentY, colWidth, rowHeight);
             ctx.clip();
 
-            // Берем максимум 2 строки, даже если перенеслось больше
             const visibleLines = lines.slice(0, 2); 
 
             visibleLines.forEach((line, index) => {
-                // Идеальный расчет Y-координаты для центрирования 1 или 2 строк внутри 110px
                 const startTextY = currentY + (rowHeight - (visibleLines.length - 1) * lineHeight) / 2 + 8;
                 ctx.fillText(line, colX + paddingX, startTextY + (index * lineHeight));
             });
@@ -376,7 +383,7 @@ function saveToPng() {
         ctx.stroke();
     });
 
-    // Вертикальные разделительные линии колонок на всю высоту (черные)
+    // Вертикальные разделительные линии колонок на всю высоту
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -390,9 +397,6 @@ function saveToPng() {
     link.href = canvas.toDataURL('image/png');
     link.click();
 }
-
-
-
 
 
         // РЕГИСТРАЦИЯ SW С ХАКОМ ПРОТИВ КЭША GITHUB PAGES
