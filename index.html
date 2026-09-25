@@ -254,12 +254,13 @@ function saveToPng() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    // Универсальная функция для разбиения текста на строки под заданную ширину
+    // ИСПРАВЛЕННАЯ функция для разбиения текста на строки
     function splitTextIntoLines(text, maxWidth, context) {
         context.font = fontBody;
         const words = text.split(' ');
         const lines = [];
-        let currentLine = words || '';
+        // БУДЬТЕ ВНИМАТЕЛЬНЫ: берем именно первое слово (строку), а не весь массив слов!
+        let currentLine = words[0] || '';
 
         for (let i = 1; i < words.length; i++) {
             const word = words[i];
