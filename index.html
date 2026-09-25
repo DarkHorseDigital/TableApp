@@ -242,7 +242,7 @@
             }
         }
 
-         function saveToPng() {
+function saveToPng() {
     const totalWidth = 719; // Жестко фиксируем общую ширину картинки
     const defaultRowHeight = 80; // Базовая высота строки для однострочного текста
     const headerHeight = 90;
@@ -254,15 +254,15 @@
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    // Функция для разбиения текста на строки под жестко заданную ширину
+    // Универсальная функция для разбиения текста на строки под заданную ширину
     function splitTextIntoLines(text, maxWidth, context) {
+        context.font = fontBody;
         const words = text.split(' ');
         const lines = [];
         let currentLine = words[0] || '';
 
         for (let i = 1; i < words.length; i++) {
             const word = words[i];
-            context.font = fontBody;
             const width = context.measureText(currentLine + " " + word).width;
             if (width < maxWidth) {
                 currentLine += " " + word;
@@ -275,54 +275,57 @@
         return lines;
     }
 
-    // --- Шаг 1: Сначала замерим, сколько места нужно под "Кол-во" и "Ед. изм." ---
+    // --- Шаг 1: Сначала замеряем точную ширину для "Кол-во" ---
     let maxCol2TextWidth = 0;
-    let maxCol3TextWidth = 0;
-
-    // Замеряем заголовки второго и третьего столбца
     ctx.font = fontHeader;
     maxCol2TextWidth = Math.max(maxCol2TextWidth, ctx.measureText("Кол-во").width);
-    maxCol3TextWidth = Math.max(maxCol3TextWidth, ctx.measureText("Ед. изм.").width);
 
-    // Замеряем введенные данные для второго и третьего столбца
     ctx.font = fontBody;
     products.forEach(item => {
         const cleanQty = (item.quantity || '').replace(/\s+/g, ' ');
         maxCol2TextWidth = Math.max(maxCol2TextWidth, ctx.measureText(cleanQty).width);
-        maxCol3TextWidth = Math.max(maxCol3TextWidth, ctx.measureText(item.unit).width);
     });
 
-    // Вычисляем финальную ширину 2-й и 3-й колонки с учетом отступов
-    const widthCol2 = Math.ceil(maxCol2TextWidth + paddingX * 2);
-    const widthCol3 = Math.ceil(maxCol3TextWidth + paddingX * 2);
-    
-    // Первая колонка забирает ВСЁ оставшееся от 719px место
-    const widthCol1 = totalWidth - widthCol2 - widthCol3;
+    // Финальная ширина второго столбца с учетом отступов (динамическая)
+    // Ограничим её максимум в 300px, чтобы таблица не превратилась в один сплошной столбец количества
+    const widthCol2 = Math.min(300, Math.ceil(maxCol2TextWidth + paddingX * 2));
 
-    // Допустимая ширина чистого текста внутри первой колонки с учетом боковых отступов
-    const maxTextWidthCol1 = widthCol1 - (paddingX * 2); 
+    // Оставшееся свободное место от 719px делим между 1-м и 3-м столбцами в пропорции 75% на 25%
+    const remainingWidth = totalWidth - widthCol2;
+    const widthCol1 = Math.floor(remainingWidth * 0.75); // Больше места под название
+    const widthCol3 = totalWidth - widthCol2 - widthCol1; // Остаток под Ед. изм.
 
-    // Рассчитываем координаты начала колонок
+    // Допустимая ширина чистого текста внутри каждого столбца
+    const maxTextWidthCol1 = widthCol1 - (paddingX * 2);
+    const maxTextWidthCol2 = widthCol2 - (paddingX * 2);
+    const maxTextWidthCol3 = widthCol3 - (paddingX * 2);
+
+    // Рассчитываем точные координаты начала колонок
     const col1 = 0;
     const col2 = widthCol1;
     const col3 = widthCol1 + widthCol2;
 
-    // --- Шаг 2: Расчет переносов для Названий и высоты строк ---
+    // --- Шаг 2: Расчет переносов для ВСЕХ ячеек и высоты строк ---
     const preparedRows = products.map(item => {
         const cleanQty = (item.quantity || '').replace(/\s+/g, ' ');
         
-        // Разбиваем текст названия под оставшуюся ширину первой колонки
+        // Разбиваем текст на строки для каждой колонки индивидуально!
         const nameLines = splitTextIntoLines(item.name, maxTextWidthCol1, ctx);
+        const qtyLines = splitTextIntoLines(cleanQty, maxTextWidthCol2, ctx);
+        const unitLines = splitTextIntoLines(item.unit, maxTextWidthCol3, ctx);
         
-        // Высчитываем высоту строки в зависимости от количества строк в названии
-        const rowHeight = nameLines.length > 1 
-            ? Math.max(defaultRowHeight, nameLines.length * lineHeight + 35) 
+        // Находим, в какой колонке получилось больше всего строк
+        const maxLinesCount = Math.max(nameLines.length, qtyLines.length, unitLines.length);
+        
+        // Высчитываем высоту строки на основе максимального количества строк текста в ней
+        const rowHeight = maxLinesCount > 1 
+            ? Math.max(defaultRowHeight, maxLinesCount * lineHeight + 35) 
             : defaultRowHeight;
 
         return {
             nameLines: nameLines,
-            qty: cleanQty,
-            unit: item.unit,
+            qtyLines: qtyLines,
+            unitLines: unitLines,
             height: rowHeight
         };
     });
@@ -361,20 +364,25 @@
         ctx.font = fontBody;
         ctx.strokeStyle = '#D3D3D3'; // Тонкие серые линии для строк
 
-        // Рендерим каждую строчку названия товара (многострочный вывод)
-        row.nameLines.forEach((line, index) => {
-            const startTextY = currentY + (row.height - (row.nameLines.length - 1) * lineHeight) / 2 + 8;
-            ctx.fillText(line, col1 + paddingX, startTextY + (index * lineHeight));
-        });
+        // Вспомогательная функция для рендеринга многострочного текста по центру строки
+        function drawCellLines(lines, colX) {
+            lines.forEach((line, index) => {
+                // Магическая формула центрирования любого количества строк по вертикали ячейки
+                const startTextY = currentY + (row.height - (lines.length - 1) * lineHeight) / 2 + 8;
+                ctx.fillText(line, colX + paddingX, startTextY + (index * lineHeight));
+            });
+        }
 
-        // Центрируем текст для количества и единиц измерения по вертикали всей строки
-        const centerTextY = currentY + (row.height / 2) + 9;
-        ctx.fillText(row.qty, col2 + paddingX, centerTextY);
-        ctx.fillText(row.unit, col3 + paddingX, centerTextY);
+        // Рендерим текст во всех трех колонках с автоматическим переносом
+        ctx.fillStyle = '#000000';
+        drawCellLines(row.nameLines, col1);
+        drawCellLines(row.qtyLines, col2);
+        drawCellLines(row.unitLines, col3);
 
         currentY += row.height;
 
         // Горизонтальная черта под строкой
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, currentY); 
         ctx.lineTo(totalWidth, currentY);
@@ -395,6 +403,7 @@
     link.href = canvas.toDataURL('image/png');
     link.click();
 }
+
 
 
 
