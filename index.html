@@ -243,61 +243,167 @@
         }
 
          function saveToPng() {
-             const width = 1000;
-            const rowHeight = 80;
-            const headerHeight = 90;
-            const totalHeight = headerHeight + (products.length * rowHeight);
+    const defaultRowHeight = 80; // Базовая высота строки для однострочного текста
+    const headerHeight = 90;
+    const paddingX = 20; // Отступ слева и справа в ячейках
+    const fontHeader = 'bold 26px Roboto, Arial, sans-serif';
+    const fontBody = '26px Roboto, Arial, sans-serif';
+    const lineHeight = 34; // Расстояние между строками при переносе текста
 
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = totalHeight;
-            const ctx = canvas.getContext('2d');
+    // Ограничим максимальную ширину колонки с названием, чтобы картинка не была слишком широкой
+    const maxColNameWidth = 450; 
 
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, width, totalHeight);
+    // Временный canvas для замеров текста
+    const calcCanvas = document.createElement('canvas');
+    const calcCtx = calcCanvas.getContext('2d');
 
-            ctx.fillStyle = '#000000';
-            const col1 = 0, col2 = width * 0.65, col3 = width * 0.825;
+    // Функция для разбиения текста на строки под заданную ширину
+    function splitTextIntoLines(text, maxWidth, ctx) {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = words[0] || '';
 
-            ctx.font = 'bold 26px Roboto, Arial, sans-serif';
-            ctx.fillText("Наименование", col1 + 15, 55);
-            ctx.fillText("Кол-во", col2 + 15, 55);
-            ctx.fillText("Ед. изм.", col3 + 15, 55);
-
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = '#000000';
-            ctx.beginPath();
-            ctx.moveTo(0, headerHeight); ctx.lineTo(width, headerHeight);
-            ctx.stroke();
-
-            ctx.font = '26px Roboto, Arial, sans-serif';
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = '#D3D3D3';
-
-            products.forEach((item, i) => {
-                const yPos = headerHeight + (i * rowHeight);
-                const textY = yPos + 50;
-                const cleanQty = (item.quantity || '').replace(/\s+/g, ' ');
-
-                ctx.fillText(item.name, col1 + 15, textY);
-                ctx.fillText(cleanQty, col2 + 15, textY);
-                ctx.fillText(item.unit, col3 + 15, textY);
-
-                ctx.beginPath();
-                ctx.moveTo(0, yPos + rowHeight); ctx.lineTo(width, yPos + rowHeight);
-                ctx.stroke();
-            });
-
-            ctx.beginPath();
-            ctx.moveTo(col2, 0); ctx.lineTo(col2, totalHeight);
-            ctx.moveTo(col3, 0); ctx.lineTo(col3, totalHeight);
-            ctx.stroke();
-
-            const link = document.createElement('a');
-            link.download = `Table_${Date.now()}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
+        for (let i = 1; i < words.length; i++) {
+            const word = words[i];
+            const width = ctx.measureText(currentLine + " " + word).width;
+            if (width < maxWidth) {
+                currentLine += " " + word;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
         }
+        if (currentLine) lines.push(currentLine);
+        return lines;
+    }
+
+    // --- Шаг 1: Замеры и расчет размеров ---
+    let maxCol1 = 0;
+    let maxCol2 = 0;
+    let maxCol3 = 0;
+
+    // Замеряем заголовки
+    calcCtx.font = fontHeader;
+    maxCol1 = Math.max(maxCol1, calcCtx.measureText("Наименование").width);
+    maxCol2 = Math.max(maxCol2, calcCtx.measureText("Кол-во").width);
+    maxCol3 = Math.max(maxCol3, calcCtx.measureText("Ед. изм.").width);
+
+    // Подготавливаем данные и считаем высоту каждой строки
+    calcCtx.font = fontBody;
+    
+    // Массив, где будем хранить уже разбитые на строки названия и высоту для каждого ряда
+    const preparedRows = products.map(item => {
+        const cleanQty = (item.quantity || '').replace(/\s+/g, ' ');
+        
+        // Разбиваем имя на строки, если оно длиннее лимита
+        const nameLines = splitTextIntoLines(item.name, maxColNameWidth, calcCtx);
+        
+        // Находим самую длинную подстроку из получившихся для точного расчета ширины первой колонки
+        nameLines.forEach(line => {
+            maxCol1 = Math.max(maxCol1, calcCtx.measureText(line).width);
+        });
+
+        maxCol2 = Math.max(maxCol2, calcCtx.measureText(cleanQty).width);
+        maxCol3 = Math.max(maxCol3, calcCtx.measureText(item.unit).width);
+
+        // Высчитываем высоту текущей строки в зависимости от количества получившихся строк текста
+        // Если строка одна — берем дефолтные 80px, если больше — динамически увеличиваем
+        const rowHeight = nameLines.length > 1 
+            ? Math.max(defaultRowHeight, nameLines.length * lineHeight + 35) 
+            : defaultRowHeight;
+
+        return {
+            nameLines: nameLines,
+            qty: cleanQty,
+            unit: item.unit,
+            height: rowHeight
+        };
+    });
+
+    // Финальная ширина колонок с учетом отступов
+    const widthCol1 = Math.ceil(maxCol1 + paddingX * 2);
+    const widthCol2 = Math.ceil(maxCol2 + paddingX * 2);
+    const widthCol3 = Math.ceil(maxCol3 + paddingX * 2);
+
+    // Координаты колонок
+    const col1 = 0;
+    const col2 = widthCol1;
+    const col3 = widthCol1 + widthCol2;
+    
+    const totalWidth = widthCol1 + widthCol2 + widthCol3;
+    
+    // Считаем общую высоту как сумму высот всех строк индивидуально
+    const totalRowsHeight = preparedRows.reduce((sum, row) => sum + row.height, 0);
+    const totalHeight = headerHeight + totalRowsHeight;
+
+    // --- Шаг 2: Отрисовка на финальном Canvas ---
+    const canvas = document.createElement('canvas');
+    canvas.width = totalWidth;
+    canvas.height = totalHeight;
+    const ctx = canvas.getContext('2d');
+
+    // Белый фон
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+    // Шапка таблицы
+    ctx.fillStyle = '#000000';
+    ctx.font = fontHeader;
+    ctx.fillText("Наименование", col1 + paddingX, 55);
+    ctx.fillText("Кол-во", col2 + paddingX, 55);
+    ctx.fillText("Ед. изм.", col3 + paddingX, 55);
+
+    // Линия под шапкой
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#000000';
+    ctx.beginPath();
+    ctx.moveTo(0, headerHeight); 
+    ctx.lineTo(totalWidth, headerHeight);
+    ctx.stroke();
+
+    // Отрисовка строк
+    ctx.font = fontBody;
+    let currentY = headerHeight; // Текущая координата Y, которая будет смещаться вниз
+
+    preparedRows.forEach((row) => {
+        ctx.strokeStyle = '#D3D3D3'; // Тонкие серые линии для строк
+
+        // Рендерим каждую строчку названия товара (многострочный вывод)
+        row.nameLines.forEach((line, index) => {
+            // Центрируем текст по вертикали внутри выделенной высоты строки
+            const startTextY = currentY + (row.height - (row.nameLines.length - 1) * lineHeight) / 2 + 8;
+            ctx.fillText(line, col1 + paddingX, startTextY + (index * lineHeight));
+        });
+
+        // Для количества и единиц измерения текст просто центрируем по вертикали по центру всей строки
+        const centerTextY = currentY + (row.height / 2) + 9;
+        ctx.fillText(row.qty, col2 + paddingX, centerTextY);
+        ctx.fillText(row.unit, col3 + paddingX, centerTextY);
+
+        // Смещаем координату Y на высоту этой строки для следующего шага
+        currentY += row.height;
+
+        // Горизонтальная черта под строкой
+        ctx.beginPath();
+        ctx.moveTo(0, currentY); 
+        ctx.lineTo(totalWidth, currentY);
+        ctx.stroke();
+    });
+
+    // Вертикальные разделительные линии колонок на всю высоту
+    ctx.strokeStyle = '#000000';
+    ctx.beginPath();
+    ctx.moveTo(col2, 0); ctx.lineTo(col2, totalHeight);
+    ctx.moveTo(col3, 0); ctx.lineTo(col3, totalHeight);
+    ctx.stroke();
+
+    // Скачивание файла
+    const link = document.createElement('a');
+    link.download = `Table_${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+
 
         // РЕГИСТРАЦИЯ SW С ХАКОМ ПРОТИВ КЭША GITHUB PAGES
         if ('serviceWorker' in navigator) {
